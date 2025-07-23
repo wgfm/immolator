@@ -1,49 +1,51 @@
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum R8 {
-    B,
-    C,
-    D,
-    E,
-    H,
-    L,
-    HLref,
-    A,
+impl From<u8> for Op {
+    fn from(value: u8) -> Self {
+        match value {
+            x if HALT.matches(x) => Op::Halt,
+            x if NOP.matches(x) => Op::Nop,
+            _ => Op::Invalid,
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum R16 {
-    BC,
-    DE,
-    HL,
-    SP,
+#[derive(Default, Debug, Clone, Copy)]
+struct OpPattern {
+    pattern: u8,
+    mask1: u8,
+    mask2: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum R16Stk {
-    BC,
-    DE,
-    HL,
-    AF,
+impl OpPattern {
+    const fn double(pattern: u8, mask1: u8, mask2: u8) -> Self {
+        Self { pattern, mask1, mask2 }
+    }
+
+    const fn single(pattern: u8, mask: u8) -> Self {
+        Self::double(pattern, mask, 0)
+    }
+
+    const fn plain(pattern: u8) -> Self {
+        Self::double(pattern, 0, 0)
+    }
+
+    fn data1(&self, byte: u8) -> u8 {
+        (self.mask1 & byte) >> self.mask1.trailing_zeros()
+    }
+
+    fn data2(&self, byte: u8) -> u8 {
+        (self.mask2 & byte) >> self.mask2.trailing_zeros()
+    }
+
+    fn matches(&self, byte: u8) -> bool {
+        byte & !self.full_mask() == self.pattern
+    }
+
+    fn full_mask(&self) -> u8 {
+        self.mask1 | self.mask2
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum R16mem {
-    BC,
-    DE,
-    HLInc,
-    HLDec,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Cond {
-    NZ,
-    Z,
-    NC,
-    C,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Op {
     Nop,
     LdR16Imm16{ dst: R16 },
@@ -112,61 +114,83 @@ pub enum Op {
     Invalid,
 }
 
-impl From<u8> for Op {
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum R8 {
+    B,
+    C,
+    D,
+    E,
+    H,
+    L,
+    HLref,
+    A,
+}
+
+const R8_VALUES: [R8; 8] = [R8::B, R8::C, R8::D, R8::E, R8::H, R8::L, R8::HLref, R8::A];
+impl From<u8> for R8 {
     fn from(value: u8) -> Self {
-        match value {
-            x if HALT.matches(x) => Op::Halt,
-            x if NOP.matches(x) => Op::Nop,
-            _ => Op::Invalid,
-        }
+        R8_VALUES[value as usize]
     }
 }
 
-struct OpQuery(u8);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum R16 {
+    BC,
+    DE,
+    HL,
+    SP,
+}
 
-impl OpQuery {
-    fn is(&self, pattern: OpPattern) -> bool {
-        pattern.matches(self.0)
-    }
-
-    fn data1(&self, pattern: OpPattern) -> u8 {
-
-    }
-
-    fn data2(&self, pattern: OpPattern) -> u8 {
+const R16_VALUES: [R16; 4] = [R16::BC, R16::DE, R16::HL, R16::SP];
+impl From<u8> for R16 {
+    fn from(value: u8) -> Self {
+        R16_VALUES[value as usize]
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
-struct OpPattern {
-    pattern: u8,
-    mask1: u8,
-    shift1: u8,
-    mask2: u8,
-    shift2: u8,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum R16Stk {
+    BC,
+    DE,
+    HL,
+    AF,
 }
 
-impl OpPattern {
-    const fn double(pattern: u8, mask1: u8, mask2: u8) -> Self {
-        let shift1 = mask1.trailing_zeros() as u8;
-        let shift2 = mask2.trailing_zeros() as u8;
-        Self { pattern, mask1, mask2, shift1, shift2 }
+const R16STK_VALUES: [R16Stk; 4] = [R16Stk::BC, R16Stk::DE, R16Stk::HL, R16Stk::AF];
+impl From<u8> for R16Stk {
+    fn from(value: u8) -> Self {
+        R16STK_VALUES[value as usize]
     }
+}
 
-    const fn single(pattern: u8, mask: u8) -> Self {
-        new(pattern, mask, 0)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum R16mem {
+    BC,
+    DE,
+    HLInc,
+    HLDec,
+}
+
+const R16MEM_VALUES: [R16mem; 4] = [R16mem::BC, R16mem::DE, R16mem::HLInc, R16mem::HLDec];
+impl From<u8> for R16mem {
+    fn from(value: u8) -> Self {
+        R16MEM_VALUES[value as usize]
     }
+}
 
-    const fn plain(pattern: u8) -> Self {
-        new(pattern, 0, 0)
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cond {
+    NZ,
+    Z,
+    NC,
+    C,
+}
 
-    fn matches(&self, byte: u8) -> bool {
-        byte & !self.full_mask() == self.pattern
-    }
-
-    fn full_mask(&self) -> u8 {
-        self.mask1 | self.mask2
+const COND_VALUES: [Cond; 4] = [Cond::NZ, Cond::Z, Cond::NC, Cond::C];
+impl From<u8> for Cond {
+    fn from(value: u8) -> Self {
+        COND_VALUES[value as usize]
     }
 }
 
