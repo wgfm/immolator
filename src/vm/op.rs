@@ -1,10 +1,24 @@
+use bitmatch::bitmatch;
+
 impl From<u8> for Op {
     fn from(value: u8) -> Self {
         match value {
             x if HALT.matches(x) => Op::Halt,
             x if NOP.matches(x) => Op::Nop,
+            x if LD_R16_IMM16.matches(x) => Op::LdR16Imm16{dst: LD_R16_IMM16.data1(x).into()},
             _ => Op::Invalid,
         }
+    }
+}
+
+#[bitmatch]
+fn from_bitmatch(b: u8) -> Op {
+    #[bitmatch]
+    match b {
+        "0000_0000" => Op::Nop,
+        "00dd_0001" => Op::LdR16Imm16{ dst: d.into() },
+        "00dd_0010" => Op::LdR16memA{ dst: d.into() },
+        _ => Op::Invalid,
     }
 }
 
