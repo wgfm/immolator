@@ -2,12 +2,7 @@ use bitmatch::bitmatch;
 
 impl From<u8> for Op {
     fn from(value: u8) -> Self {
-        match value {
-            x if HALT.matches(x) => Op::Halt,
-            x if NOP.matches(x) => Op::Nop,
-            x if LD_R16_IMM16.matches(x) => Op::LdR16Imm16{dst: LD_R16_IMM16.data1(x).into()},
-            _ => Op::Invalid,
-        }
+        from_bitmatch(value)
     }
 }
 
@@ -18,6 +13,82 @@ fn from_bitmatch(b: u8) -> Op {
         "0000_0000" => Op::Nop,
         "00dd_0001" => Op::LdR16Imm16{ dst: d.into() },
         "00dd_0010" => Op::LdR16memA{ dst: d.into() },
+        "00ss_1010" => Op::LdAR16mem{ src: s.into() },
+        "0000_1000" => Op::LdImm16Sp,
+        "00pp_0011" => Op::IncR16{ op: p.into() },
+        "00pp_1011" => Op::DecR16{ op: p.into() },
+        "00pp_1001" => Op::AddHlR16{ op: p.into() },
+        "00pp_p100" => Op::IncR8{ op: p.into() },
+        "00pp_p101" => Op::DecR8{ op: p.into() },
+        "00dd_d110" => Op::LdR8Imm8{ dst: d.into() },
+        "0000_0111" => Op::Rlca,
+        "0000_1111" => Op::Rrca,
+        "0001_0111" => Op::Rla,
+        "0001_1111" => Op::Rra,
+        "0010_0111" => Op::Daa,
+        "0010_1111" => Op::Cpl,
+        "0011_0111" => Op::Scf,
+        "0011_1111" => Op::Ccf,
+        "0001_1000" => Op::JrImm8,
+        "001c_c000" => Op::JrCondImm8{ cond: c.into() },
+        "0001_0000" => Op::Stop,
+
+        "0111_0111" => Op::Halt,
+        "01dd_dsss" => Op::LdR8R8{ dst: d.into(), src: s.into() },
+
+        "1000_0ppp" => Op::AddAR8{ op: p.into() },
+        "1000_1ppp" => Op::AdcAR8{ op: p.into() },
+        "1001_0ppp" => Op::SubAR8{ op: p.into() },
+        "1001_1ppp" => Op::SbcAR8{ op: p.into() },
+        "1010_0ppp" => Op::AndAR8{ op: p.into() },
+        "1010_1ppp" => Op::XorAR8{ op: p.into() },
+        "1011_0ppp" => Op::OrAR8{ op: p.into() },
+        "1011_1ppp" => Op::CpAR8{ op: p.into() },
+
+        "1100_0110" => Op::AddAImm8,
+        "1100_1110" => Op::AdcAImm8,
+        "1101_0110" => Op::SubAImm8,
+        "1101_1110" => Op::SbcAImm8,
+        "1110_0110" => Op::AndAImm8,
+        "1110_1110" => Op::XorAImm8,
+        "1111_0110" => Op::OrAImm8,
+        "1111_1110" => Op::CpAImm8,
+        "110c_c000" => Op::RetCond{ cond: c.into() },
+        "1100_1001" => Op::Ret,
+        "1101_1001" => Op::Reti,
+        "110c_c010" => Op::JpCondImm16{ cond: c.into() },
+        "1100_0011" => Op::JpImm16,
+        "1110_1001" => Op::JpHl,
+        "110c_c100" => Op::CallCondImm16{ cond: c.into() },
+        "1100_1101" => Op::CallImm16,
+        "11tt_t111" => Op::RstTgt3{ tgt: t },
+        "11rr_0001" => Op::PopR16stk{ reg: r.into() },
+        "11rr_0101" => Op::PushR16stk { reg: r.into() },
+        "1100_1011" => Op::CBPrefix,
+        "1110_0010" => Op::LdhCrefA,
+        "1110_0000" => Op::LdhImm8refA,
+        "1110_1010" => Op::LdImm16refA,
+        "1111_0010" => Op::LdhACref,
+        "1111_0000" => Op::LdhAImm8ref,
+        "1111_1010" => Op::LdAImm16ref,
+        "1110_1000" => Op::AddSpImm8,
+        "1111_1000" => Op::LdHlSpImm8,
+        "1111_1001" => Op::LdSpHl,
+        "1111_0011" => Op::Di,
+        "1111_1011" => Op::Ei,
+
+        "0000_0ppp" => Op::CBRlcR8{ op: p.into() },
+        "0000_1ppp" => Op::CBRrcR8{ op: p.into() },
+        "0001_0ppp" => Op::CBRlR8{ op: p.into() },
+        "0001_1ppp" => Op::CBRrR8{ op: p.into() },
+        "0010_0ppp" => Op::CBSlaR8{ op: p.into() },
+        "0010_1ppp" => Op::CBSraR8{ op: p.into() },
+        "0011_0ppp" => Op::CBSwapR8{ op: p.into() },
+        "0011_1ppp" => Op::CBSrlR8{ op: p.into() },
+        "01bb_bppp" => Op::CBBitB3R8{ bi: b.into(), op: p.into() },
+        "10bb_bppp" => Op::CBResB3R8{ bi: b.into(), op: p.into() },
+        "11bb_bppp" => Op::CBSetB3R8{ bi: b.into(), op: p.into() },
+
         _ => Op::Invalid,
     }
 }
@@ -85,14 +156,14 @@ pub enum Op {
     Stop,
     LdR8R8{ dst: R8, src: R8 },
     Halt,
-    AddAR8,
-    AdcAR8,
-    SubAR8,
-    SbcAR8,
-    AndAR8,
-    XorAR8,
-    OrAR8,
-    CpAR8,
+    AddAR8{ op: R8 },
+    AdcAR8{ op: R8 },
+    SubAR8{ op: R8 },
+    SbcAR8{ op: R8 },
+    AndAR8{ op: R8 },
+    XorAR8{ op: R8 },
+    OrAR8{ op: R8 },
+    CpAR8{ op: R8 },
     AddAImm8,
     AdcAImm8,
     SubAImm8,
@@ -107,7 +178,7 @@ pub enum Op {
     JpCondImm16{ cond: Cond },
     JpImm16,
     JpHl,
-    CallCondImm16,
+    CallCondImm16{ cond: Cond },
     CallImm16,
     RstTgt3{ tgt: u8 },
     PopR16stk{ reg: R16Stk },
@@ -123,8 +194,21 @@ pub enum Op {
     CBSwapR8{ op: R8 },
     CBSrlR8{ op: R8 },
     CBBitB3R8{ bi: u8, op: R8 },
-    ResB3R8{ bi: u8, op: R8 },
-    SetB3R8{ bi: u8, op: R8 },
+    CBResB3R8{ bi: u8, op: R8 },
+    CBSetB3R8{ bi: u8, op: R8 },
+
+    LdhCrefA,
+    LdhImm8refA,
+    LdImm16refA,
+    LdhACref,
+    LdhAImm8ref,
+    LdAImm16ref,
+    AddSpImm8,
+    LdHlSpImm8,
+    LdSpHl,
+    Di,
+    Ei,
+
     Invalid,
 }
 
@@ -208,85 +292,3 @@ impl From<u8> for Cond {
     }
 }
 
-const NOP: OpPattern = OpPattern::plain(0x00);
-const LD_R16_IMM16: OpPattern = OpPattern::single(0x01, 0x30);
-const LD_R16MEM_A: OpPattern = OpPattern::single(0x02, 0x30);
-const LD_A_R16MEM: OpPattern = OpPattern::single(0x0A, 0x30);
-const LD_IMM16_SP: OpPattern = OpPattern::plain(0x08);
-const INC_R16: OpPattern = OpPattern::single(0x03, 0x30);
-const DEC_R16: OpPattern = OpPattern::single(0x0B, 0x30);
-const ADD_HL_R16: OpPattern = OpPattern::single(0x09, 0x30);
-const INC_R8: OpPattern = OpPattern::single(0x04, 0x38);
-const DEC_R8: OpPattern = OpPattern::single(0x05, 0x38);
-const LD_R8_IMM8: OpPattern = OpPattern::single(0x06, 0x38);
-const RLCA: OpPattern = OpPattern::plain(0x07);
-const RRCA: OpPattern = OpPattern::plain(0x0F);
-const RLA: OpPattern = OpPattern::plain(0x17);
-const RRA: OpPattern = OpPattern::plain(0x1F);
-const DAA: OpPattern = OpPattern::plain(0x27);
-const CPL: OpPattern = OpPattern::plain(0x2F);
-const SCF: OpPattern = OpPattern::plain(0x37);
-const CCF: OpPattern = OpPattern::plain(0x3F);
-const JR_IMM8: OpPattern = OpPattern::plain(0x18);
-const JR_COND_IMM8: OpPattern = OpPattern::single(0x20, 0x18);
-const STOP: OpPattern = OpPattern::plain(0x10);
-
-const HALT: OpPattern = OpPattern::plain(0x76);
-const LD_R8_R8: OpPattern = OpPattern::double(0x40, 0x38, 0x07);
-
-const ADD_A_R8: OpPattern = OpPattern::single(0x80, 0x07);
-const ADC_A_R8: OpPattern = OpPattern::single(0x88, 0x07);
-const SUB_A_R8: OpPattern = OpPattern::single(0x90, 0x07);
-const SBC_A_R8: OpPattern = OpPattern::single(0x91, 0x07);
-const AND_A_R8: OpPattern = OpPattern::single(0xA0, 0x07);
-const XOR_A_R8: OpPattern = OpPattern::single(0xA8, 0x07);
-const OR_A_R8: OpPattern = OpPattern::single(0xB0, 0x07);
-const CP_A_R8: OpPattern = OpPattern::single(0xB8, 0x07);
-
-const ADD_A_IMM8: OpPattern = OpPattern::plain(0xC6);
-const ADC_A_IMM8: OpPattern = OpPattern::plain(0xCE);
-const SUB_A_IMM8: OpPattern = OpPattern::plain(0xD6);
-const SBC_A_IMM8: OpPattern = OpPattern::plain(0xDE);
-const AND_A_IMM8: OpPattern = OpPattern::plain(0xE6);
-const XOR_A_IMM8: OpPattern = OpPattern::plain(0xEE);
-const OR_A_IMM8: OpPattern = OpPattern::plain(0xF6);
-const CP_A_IMM8: OpPattern = OpPattern::plain(0xFE);
-
-const RET_COND: OpPattern = OpPattern::single(0xC0, 0x18);
-const RET: OpPattern = OpPattern::plain(0xC9);
-const RETI: OpPattern = OpPattern::plain(0xD9);
-const JP_COND_IMM16: OpPattern = OpPattern::single(0xC2, 0x18);
-const JP_IMM16: OpPattern = OpPattern::plain(0xC3);
-const JP_HL: OpPattern = OpPattern::plain(0xE9);
-const CALL_COND_IMM16: OpPattern = OpPattern::single(0xC4, 0x18);
-const CALL_IMM16: OpPattern = OpPattern::plain(0xCD);
-const RST_TGT3: OpPattern = OpPattern::single(0xC7, 0x18);
-
-const POP_R16STK: OpPattern = OpPattern::single(0xC1, 0x30);
-const PUSH_R16STK: OpPattern = OpPattern::single(0xC5, 0x30);
-
-const PREFIX: OpPattern = OpPattern::plain(0xCB);
-const CB_RLC_R8: OpPattern = OpPattern::single(0x00, 0x07);
-const CB_RRC_R8: OpPattern = OpPattern::single(0x08, 0x07);
-const CB_RL_R8: OpPattern = OpPattern::single(0x10, 0x07);
-const CB_RR_R8: OpPattern = OpPattern::single(0x18, 0x07);
-const CB_SLA_R8: OpPattern = OpPattern::single(0x20, 0x07);
-const CB_SRA_R8: OpPattern = OpPattern::single(0x28, 0x07);
-const CB_SWAP_R8: OpPattern = OpPattern::single(0x30, 0x07);
-const CB_SRL_R8: OpPattern = OpPattern::single(0x38, 0x07);
-const CB_BIT_B3_R8: OpPattern = OpPattern::double(0x40, 0x38, 0x07);
-const CB_RES_B3_R8: OpPattern = OpPattern::double(0x80, 0x38, 0x07);
-const CB_SET_B3_R8: OpPattern = OpPattern::double(0xC0, 0x38, 0x07);
-
-const LDH_CREF_A: OpPattern = OpPattern::plain(0xE2);
-const LDH_IMM8REF_A: OpPattern = OpPattern::plain(0xE0);
-const LD_IMM16REF_A: OpPattern = OpPattern::plain(0xE9);
-const LD_A_CREF: OpPattern = OpPattern::plain(0xF2);
-const LD_A_IMM8REF: OpPattern = OpPattern::plain(0xF0);
-const LD_A_IMM16REF: OpPattern = OpPattern::plain(0xF9);
-
-const ADD_SP_IMM8: OpPattern = OpPattern::plain(0xE8);
-const LD_HL_SPIMM8: OpPattern = OpPattern::plain(0xF8);
-const LD_SP_HL: OpPattern = OpPattern::plain(0xF9);
-const DI: OpPattern = OpPattern::plain(0xF3);
-const EI: OpPattern = OpPattern::plain(0xFB);
