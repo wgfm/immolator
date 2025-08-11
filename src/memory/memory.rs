@@ -1,4 +1,4 @@
-use std::ops::{Index, Range, RangeInclusive};
+use std::ops::{Index, IndexMut, Range, RangeInclusive};
 use crate::memory::vram::{as_vram, VRam};
 
 const ROM_BANK_00: Range<usize> = 0x0000..0x4000;
@@ -28,22 +28,6 @@ const VRAM_DMA: RangeInclusive<usize> = 0xFF51..=0xFF55;
 const BG_OBJ_PALETTES: RangeInclusive<usize> = 0xFF68..=0xFF6B;
 const WRAM_BANK_SELECT: RangeInclusive<usize> = 0xFF70..=0xFF70;
 
-impl Index<u16> for Memory {
-    type Output = u8;
-
-    fn index(&self, idx: u16) -> &Self::Output {
-        self.0.index(idx as usize)
-    }
-}
-
-impl Index<RangeInclusive<u16>> for Memory {
-    type Output = [u8];
-
-    fn index(&self, idx: RangeInclusive<u16>) -> &Self::Output {
-        self.0.index((*idx.start() as usize)..=(*idx.end() as usize))
-    }
-}
-
 pub struct Memory(pub [u8; 1<<16]);
 
 pub fn new() -> Memory {
@@ -59,6 +43,15 @@ impl Memory {
         let bytes = &self[addr..=addr+1];
 
         u16::from_be_bytes(bytes.try_into().expect("must read two bytes"))
+    }
+
+    pub fn write_byte(&mut self, addr: u16, byte: u8) {
+        self[addr] = byte
+    }
+
+    pub fn write_word(&mut self, addr: u16, word: u16) {
+        self[addr] = word as u8;
+        self[addr+1] = (word >> 8) as u8;
     }
 
     pub fn rom_bank_00(&self) -> &[u8] {
@@ -102,3 +95,24 @@ impl Memory {
     }
 }
 
+impl Index<u16> for Memory {
+    type Output = u8;
+
+    fn index(&self, idx: u16) -> &Self::Output {
+        self.0.index(idx as usize)
+    }
+}
+
+impl IndexMut<u16> for Memory {
+    fn index_mut(&mut self, index: u16) -> &mut Self::Output {
+        self.0.index_mut(index as usize)
+    }
+}
+
+impl Index<RangeInclusive<u16>> for Memory {
+    type Output = [u8];
+
+    fn index(&self, idx: RangeInclusive<u16>) -> &Self::Output {
+        self.0.index((*idx.start() as usize)..=(*idx.end() as usize))
+    }
+}
