@@ -100,6 +100,7 @@ impl VM {
 
             Op::Daa => {
                 let mut adj = 0;
+                let mut flags = self.registers.f() & !F_HALF_CARRY;
                 if self.is_set(F_SUBTRACTION) {
                     if self.is_set(F_HALF_CARRY) {
                         adj += 0x06;
@@ -117,9 +118,18 @@ impl VM {
                     }
                     
                     if self.is_set(F_CARRY) || (a > 0x99) {
-
+                        adj += 0x60;
+                        flags |= F_CARRY;
                     }
+
+                    self.registers.add_a(adj);
                 }
+
+                if self.registers.a() == 0 {
+                    flags |= F_ZERO;
+                }
+
+                self.set_flags(flags);
             }
 
             _ => println!("no halt"),
@@ -213,7 +223,8 @@ impl VM {
     }
 
     pub fn set_flags(&mut self, flags: Flags) {
-        self.registers.set_a(flags);
+        let f = self.registers.f();
+        self.registers.set_f(flags | f);
     }
 }
 
@@ -283,6 +294,10 @@ pub struct Registers {
 impl Registers {
     fn a(&self) -> u8 {
         (self.af >> 8) as u8
+    }
+
+    fn f(&self) -> u8 {
+        (self.af) as u8
     }
 
     fn b(&self) -> u8 {
@@ -395,6 +410,10 @@ impl Registers {
 
     pub fn set_l(&mut self, value: u8) {
         self.hl = self.hl & 0xFF00 + (value as u16);
+    }
+
+    pub fn set_f(&mut self, value: u8) {
+        self.af = self.af & 0xFF00 + (value as u16);
     }
 
     pub fn add_a(&mut self, value: u8) {
