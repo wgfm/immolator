@@ -42,7 +42,7 @@ impl Memory {
     pub fn read_word(&self, addr: u16) -> u16 {
         let bytes = &self[addr..=addr+1];
 
-        u16::from_be_bytes(bytes.try_into().expect("must read two bytes"))
+        u16::from_le_bytes(bytes.try_into().expect("must read two bytes"))
     }
 
     pub fn write_byte(&mut self, addr: u16, byte: u8) {
